@@ -1,0 +1,64 @@
+name: build glibc
+
+concurrency:
+  group: ${{ github.ref }}-glibc
+  cancel-in-progress: true
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  glibc:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
+    steps:
+    - uses: actions/checkout@v3
+    - uses: docker/setup-qemu-action@v1
+    - uses: docker/setup-buildx-action@v1
+    - uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+    - name: Build glibc
+      env:
+        GLIBC_VERSION: 2.37
+        REPO: ghcr.io/${{ github.repository }}:latest
+      run: |
+        mkdir -p artefacts
+        docker run --platform linux/${{ matrix.arch }} \
+          --env GLIBC_VERSION=$GLIBC_VERSION \
+          --env STDOUT=1 \
+          $(echo $REPO | tr '[:upper:]' '[:lower:]') > artefacts/glibc-bin-$GLIBC_VERSION-0-${{ matrix.arch }}.tar.gz
+    - uses: actions/upload-artifact@v2
+      with:
+        name: glibc
+        path: artefacts/*.tar.gz
+
+  release:
+    runs-on: ubuntu-latest
+    needs: glibc
+    steps:
+    - uses: actions/download-artifact@v2
+      with:
+        name: glibc
+        path: artefacts
+    - uses: softprops/action-gh-release@v1
+      with:
+        generate_release_notes: true
+        token: ${{ github.token }}
+        name: ${{ github.repository }} ${{ github.ref_name }} Released
+        body: ${{ github.repository }} ${{ github.ref_name }} has been released
+        files: |
+          artefacts/*
+    - uses: geekyeggo/delete-artifact@v2
+      with:
+        name: glibc
+
