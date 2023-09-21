@@ -16,8 +16,8 @@ jobs:
       fail-fast: false
       matrix:
         arch:
-          - amd64
-          - arm64
+          - [amd64, x86_64]
+          - [arm64, aarch64]
     steps:
     - uses: actions/checkout@v3
     - uses: docker/setup-qemu-action@v1
@@ -33,10 +33,10 @@ jobs:
         REPO: ghcr.io/${{ github.repository }}:latest
       run: |
         mkdir -p artefacts
-        docker run --platform linux/${{ matrix.arch }} \
+        docker run --platform linux/${{ matrix.arch[0] }} \
           --env GLIBC_VERSION=$GLIBC_VERSION \
           --env STDOUT=1 \
-          $(echo $REPO | tr '[:upper:]' '[:lower:]') > artefacts/glibc-bin-$GLIBC_VERSION-0-${{ matrix.arch }}.tar.gz
+          $(echo $REPO | tr '[:upper:]' '[:lower:]') > artefacts/glibc-bin-$GLIBC_VERSION-0-${{ matrix.arch[1] }}.tar.gz
     - uses: actions/upload-artifact@v2
       with:
         name: glibc
